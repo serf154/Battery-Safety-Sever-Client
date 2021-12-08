@@ -54,7 +54,11 @@ class ModbusHandler:
                     timeInterval = float(row[0])
                     self.intervalTimeList.append(timeInterval)
             print("PowerList: " + str(self.PowerList))
-
+        
+        ## voltage limit variables
+        self.lowLimit = False
+        self.highLimit = False
+        
         self.Init();
 
     def Init(self):
@@ -67,6 +71,7 @@ class ModbusHandler:
         self.setCurrent(0);
 
         self.setPower(0)
+        
 
         if(not self.LoopIfNotMeetReq(self.checkModbusIfInit, 70)):
             print("checkModbusIfInit doesn't meet the requirement")
@@ -92,11 +97,13 @@ class ModbusHandler:
 
     def checkModbusIfInit(self):
         DCBusPower = self.getPower();
-        DCBusCurrent = self.getCurrent()
+        DCBusCurrent = self.getCurrent();
         RemoteVoltage = self.getVoltage();
-        if (DCBusPower > 0 - self.variance_power and DCBusPower < 0 + self.variance_power and DCBusCurrent > 0 - self.variance_current and DCBusCurrent < 0 + self.variance_current and RemoteVoltage < self.max_vol and RemoteVoltage > self.min_vol):
+        if (DCBusPower > 0 - self.variance_power and DCBusPower < 0 + self.variance_power and DCBusCurrent > 0 - self.variance_current
+                                and DCBusCurrent < 0 + self.variance_current and RemoteVoltage < self.max_vol and RemoteVoltage > self.min_vol):
             # print("Current and power are all set nearly 0, meet the requirement")
             return True;
+        print('DCBusPower: '+ str(DCBusPower) + ', DCBusCurrent: ' + str(DCBusCurrent) + ', RemoteVoltage: ' + str(RemoteVoltage))
         return False;
 
 
@@ -159,7 +166,14 @@ class ModbusHandler:
             # get the current value we need
             currentVal = self.currentVal * self.CurrentList[self.intervalCount % len(self.CurrentList)]
             # set the current value
-            self.setCurrent(currentVal);
+            if self.lowLimit and currentVal>0:
+                self.setCurrent(0)
+            elif self.highLimit and currentVal<0:
+                self.setCurrent(0)
+            else:
+                self.setCurrent(currentVal);
+                self.highLimit = False
+                self.lowLimit = False
             # check if the real value is one the range of expected values
             self.LoopIfNotMeetReq(self.checkIfModbusCurrentRight, 20, currentVal - self.variance_current,
                                   currentVal + self.variance_current)
@@ -170,17 +184,36 @@ class ModbusHandler:
 
         self.intervalTime = self.intervalTimeList[count % len(self.PowerList)];
         print("powerValue: " + str(self.powerValue * self.PowerList[count % len(self.PowerList)]))
+        print('current - previous = ' + str(currentTime - self.PreviousTime) + ', intervalTime = ' + str(self.intervalTime))
         if (currentTime - self.PreviousTime > self.intervalTime):
+            print('power from line ' + str(count % len(self.PowerList)))
             self.intervalCount += 1;
             self.PreviousTime = time.time();
             # get the current value we need
             powerVal = self.powerValue * self.PowerList[self.intervalCount % len(self.PowerList)]
             # set the current value
-            self.setPower(powerVal);
-            # check if the real value is one the range of expected values
+#             self.setPower(powerVal);
+#             self.highLimit = False
+#             self.lowLimit = False
+            if self.lowLimit and powerVal>0:
+                print('lowlim = ' + str(self.lowLimit) + ' and powerVal = ' + str(powerVal))
+                powerVal = 0
+                self.setPower(powerVal);
+            elif self.highLimit and powerVal<0:
+                print('highlim = ' + str(self.highLimit) + ' and powerVal = ' + str(powerVal))
+                powerVal = 0 
+                self.setPower(powerVal);
+            else:
+                print('good to set next power value')
+                self.setPower(powerVal);
+                self.highLimit = False
+                self.lowLimit = False
+        
             
+            # check if the real value is one the range of expected values
             if(not self.LoopIfNotMeetReq(self.checkIfModbusPowerRight, 20, powerVal - self.variance_power,
                                   powerVal + self.variance_power)):
+#                 print("ModbusHandler: updatePower Error!!!")
                 raise Exception("ModbusHandler: updatePower Error!!!")
 
 
@@ -261,6 +294,7 @@ class ModbusHandler:
 
     def getVoltage(self):
         RemoteVoltage = (self.instrument.read_register(self.epcl_remote_volt, 0, 4) / self.voltage_scale)
+#         RemoteVoltage = (self.instrument.read_register(self.epcl_dc_link_volt, 0, 4) / self.voltage_scale)
         return RemoteVoltage;
     # def getRemoteVoltage(self):
     #     RemoteVoltage = (self.instrument.read_register(30263, 0, 4) / self.voltage_scale)
@@ -280,6 +314,7 @@ class ModbusHandler:
         #         self.instrument.write_register(self.Op_mode_setpoint, 65028, 0, 6) # Op_mode_setpoint
         self.instrument.write_register(self.Op_mode_setpoint, self.signedToUnsigned(value * self.power_scale), 0,
                                        6)  # Op_mode_setpoint
+        print('PowerVal set to: ' + str(value))
 
     def setVoltage(self, value):
         self.instrument.write_register(self.K_op_mode, self.voltage_mode, 0, 6)  # K_op_mode
@@ -342,10 +377,10 @@ class ModbusHandler:
     
     def checkIfModbusPowerRight(self, bottomLine, upLine ):
         power = self.getPower();
-#         print("power is : " + str(power))
         if (power < upLine and power > bottomLine):
             return True;
         else:
+            print("power is : " + str(power) + " upLine: " + str(upLine) + " bottomLine: " + str(bottomLine))
             return False;
 
     def checkIfModbusVoltageInit(self):

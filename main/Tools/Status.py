@@ -39,6 +39,7 @@ class Status(object):
                     setattr(self, i[0], False);
         self.warning = False;
         self.dangerous = False;
+#         print('StatusObj has been initiated')
 
 # --------------------------------- get function ---------------------------------------
 

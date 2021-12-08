@@ -291,6 +291,8 @@ class PcanConnection(object):
                 min_CMA_Voltage = CMA_Voltage
         # print("max_CMA_Voltage: " + str(max_CMA_Voltage))
         # print("min_CMA_Voltage: " + str(min_CMA_Voltage))
+        
+        # update status if conditions are met
         if max_CMA_Voltage >= self.CMA_Voltage_High_Dangerous:
             status.dangerous = True;
             status.isPcanVoltageHighDangerous = True;
@@ -303,7 +305,6 @@ class PcanConnection(object):
             status.dangerous = True;
             status.isPcanVoltageLowDangerous = True;
             print("CMA_Voltage_low dangerous")
-            
         if min_CMA_Voltage <= self.CMA_Voltage_Low_Warning:
             status.warning = True;
             print("CMA_Voltage_low warning")
@@ -337,6 +338,8 @@ class PcanConnection(object):
                 pass
         # print("Max temp: " + str(max_temp))
         # print("temperature voliated battery: " + str(status.temperature_voliated_battery))
+        
+        
         for battery in status.temperature_voliated_battery:
             battery_str = 'BMU' + str(battery).zfill(2)
             label = battery_str + '_' + 'CMA_Max_Temp';
@@ -360,6 +363,7 @@ class PcanConnection(object):
                     Min_Cell_Voltage = self.message_data_dict[label];
 #         print("Max_Cell_Voltage: " + str(Max_Cell_Voltage));
 #         print("Min_Cell_voltage: " + str(Min_Cell_Voltage))
+
         if Max_Cell_Voltage >= self.Cell_Voltage_High_Dangerous:
             print("max cell voltage high dangerous : " + str(Max_Cell_Voltage))
             status.isPcanVoltageHighDangerous = True;
@@ -379,6 +383,7 @@ class PcanConnection(object):
         
 
     def updateStatus(self, status):
+        
         # print("Begin to detect the status")
         self.updateStatusWithCMAVoltage(status);
         self.updateStatusWithTemp(status);
