@@ -70,7 +70,7 @@ Then upload main/Arduino/Arduino.ino to the Arduino IDE.
 
 * Get the Code: 
 
-  $ git clone https://github.com/Battery-safety-system/Battery-Safety-Sever-Client.git
+  $ git clone https://github.com/serf154/Battery-Safety-Sever-Client.git
   $ git checkout TestCode
   $ cd Battery-Safety-Sever-Client
 
